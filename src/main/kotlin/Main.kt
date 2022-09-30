@@ -1,5 +1,15 @@
+
+interface CrudService<E> {
+    fun add(entity: E): Long
+    fun delete(id: Long): Boolean
+    fun edit(id: Long, entity: E): Boolean
+    fun read(): List<E>
+    fun getById(id: Long): E
+    fun restore(id: Long): Boolean
+}
+
+
 data class Note(
-    val id: Int,
     val title: String,
     val text: String,
     val privacy: Int = 0,
@@ -9,78 +19,15 @@ data class Note(
 )
 
 data class Comment(
-    val id: Int,
     val noteID: Int,
     val message: String,
     val date: Long = System.currentTimeMillis() / 1000,
     val delete: Boolean = false
 )
 
-object Notes {
-    private var noteID = 1;
-    private var commentID = 1;
-    private var notes: MutableMap<Int, Note> = mutableMapOf()
-    private var comments: MutableMap<Int, Comment> = mutableMapOf()
+object Comments: CrudService<Comment> {
+    private var comments: MutableMap<Long, Comment> = mutableMapOf()
 
-    fun add(title: String, text: String, privacy: Int = 0, commentPrivacy: Int = 0): Int {
-        notes[noteID] = Note(noteID, title, text, privacy, commentPrivacy)
-        noteID += 1
-        return noteID
-    }
-
-    fun init(){
-        notes.clear()
-        comments.clear()
-        noteID = 1
-        commentID = 1
-    }
-
-
-    fun createComment(noteID: Int, message: String): Int {
-        comments[commentID] = Comment(commentID, noteID, message)
-        commentID += 1
-        return commentID
-    }
-
-    fun delete(noteID: Int): Boolean {
-        if (notes.containsKey(noteID)) {
-            if (!notes.getValue(noteID).delete) {
-                notes[noteID] = notes.getValue(noteID).copy(delete = true)
-                return true
-            }
-        }
-        return false
-    }
-
-    fun deleteComment(commentID: Int): Boolean {
-        return editComment(commentID, "", true)
-    }
-
-    fun edit(noteID: Int, title: String, text: String, privacy: Int = 0, commentPrivacy: Int = 0): Boolean {
-        if (notes.containsKey(noteID)) {
-            if (!notes.getValue(noteID).delete) {
-                notes[noteID] =
-                    notes[noteID]!!.copy(title = title, text = text, privacy = privacy, commentPrivacy = commentPrivacy)
-                return true
-            }
-        }
-        return false
-    }
-
-    fun editComment(commentID: Int, message: String, delete: Boolean = false): Boolean {
-        if (comments.containsKey(commentID)) {
-
-            val mes = if (message == "") {
-                comments.getValue(commentID).message
-            } else {
-                message
-            }
-            comments[commentID] = comments[commentID]!!.copy(message = mes, delete = delete)
-            return true
-
-        }
-        return false
-    }
 
     fun getComments(noteId: Int, sort: Boolean = false, count: Int = 100): MutableList<Comment> {
         var cnt = 0
@@ -96,48 +43,108 @@ object Notes {
         } else {
             arr.sortByDescending { it.date }
         }
-
         return arr
     }
 
-    fun restoreComment(commentID: Int): Boolean {
-        return editComment(commentID, "", false)
+    override fun add(entity: Comment): Long {
+        val id: Long = (comments.size+1).toLong()
+        comments[id] = entity
+        return id
     }
 
-    fun getById(noteId: Int): Note? {
-        return notes[noteId]
+    override fun delete(id: Long): Boolean {
+        if (comments.containsKey(id)) {
+            val comment = comments.getValue(id).copy(delete = true)
+            return edit(id, comment)
+        }
+        return false
     }
+
+    override fun edit(id: Long, entity: Comment): Boolean {
+        if (comments.containsKey(id)) {
+            if (!comments.getValue(id).delete) {
+                comments[id] = entity
+                return true
+            }
+        }
+        return false
+    }
+
+    override fun read(): List<Comment> {
+        var com: List<Comment> = emptyList()
+        for ((key, value) in comments.entries){
+           com += value
+        }
+        return com
+    }
+
+    override fun getById(id: Long): Comment {
+        return comments[id]!!
+    }
+
+    override fun restore(id: Long): Boolean {
+        if (comments.containsKey(id)) {
+            val comment = comments.getValue(id).copy(delete = false)
+            return edit(id, comment)
+        }
+        return false
+    }
+
+}
+
+object Notes: CrudService<Note> {
+    private var notes: MutableMap<Long, Note> = mutableMapOf()
+
+    fun init(){
+        notes.clear()
+    }
+
+    override fun add(entity: Note): Long {
+        val id: Long = (notes.size+1).toLong()
+        notes[id] = entity
+        return id
+    }
+
+    override fun delete(id: Long): Boolean {
+        if (notes.containsKey(id)) {
+            val note = notes.getValue(id).copy(delete = true)
+            return edit(id, note)
+        }
+        return false
+    }
+
+    override fun edit(ID: Long, entity: Note): Boolean {
+        if (notes.containsKey(ID)) {
+            if (!notes.getValue(ID).delete) {
+                notes[ID] = entity
+                return true
+            }
+        }
+        return false
+    }
+
+    override fun read(): List<Note> {
+        var note: List<Note> = emptyList()
+        for ((key, value) in notes.entries){
+            note += value
+        }
+        return note
+    }
+
+    override fun getById(id: Long): Note {
+        return notes[id]!!
+    }
+
+    override fun restore(id: Long): Boolean {
+        val note = notes.getValue(id).copy(delete = false)
+        return edit(id, note)
+    }
+
 }
 
 
 fun main(args: Array<String>) {
 
-    val note = Notes
-
-//    note.add("Note 1", "Text Note 1")
-//    note.add("Note 2", "Text Note 2")
-    println(note.getById(1))
-
-    note.createComment(1, "2")
-    Thread.sleep(1000)
-    note.createComment(1, "1")
-    Thread.sleep(1000)
-    note.createComment(1, "3")
-//    println(note.notes)
-
-//    println(note.comments)
-
-    //   println(note.editComment(3,"Edited"))
-
-    println(note.getComments(1, false, 3))
-    note.deleteComment(1)
-    println(note.getComments(1, false, 3))
-    note.restoreComment(1)
-    println(note.getComments(1, false, 3))
-
-//    println(note.comments)
-
-//    println(note.delete(3))
-//    println(note.notes)
+    
 
 }
